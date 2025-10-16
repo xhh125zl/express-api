@@ -241,7 +241,13 @@ abstract class BaseTemplate
             ];
 
             $config = array_merge($defaultConfig, $field);
-            $this->fields[$name] = new Field($name, $config);
+            
+            // 检查是否是多语言字段
+            if (isset($config['labels']) && is_array($config['labels'])) {
+                $this->fields[$name] = new MultilingualField($name, $config);
+            } else {
+                $this->fields[$name] = new Field($name, $config);
+            }
         }
         return $this;
     }
@@ -266,6 +272,19 @@ abstract class BaseTemplate
     public function removeField(string $name): self
     {
         unset($this->fields[$name]);
+        return $this;
+    }
+
+    /**
+     * 设置字段
+     *
+     * @param string $name 字段名称
+     * @param Field $field 字段对象
+     * @return self
+     */
+    public function setField(string $name, Field $field): self
+    {
+        $this->fields[$name] = $field;
         return $this;
     }
 

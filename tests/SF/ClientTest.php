@@ -1,56 +1,45 @@
 <?php
 
-namespace Kode\ExpressApi\Tests\EMS;
+namespace Kode\ExpressApi\Tests\SF;
 
-use Kode\ExpressApi\EMS\Client;
-use Kode\ExpressApi\EMS\Config;
+use Kode\ExpressApi\SF\Client;
+use Kode\ExpressApi\SF\Config;
 use PHPUnit\Framework\TestCase;
 
-/**
- * EMS客户端测试类
- */
 class ClientTest extends TestCase
 {
-    /**
-     * 测试客户端初始化
-     */
-    public function testClientInitializationWithArray()
+    private $client;
+    private $config;
+
+    protected function setUp(): void
     {
-        $config = [
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-            'sandbox' => true,
-        ];
-
-        $client = new Client($config);
-
-        $this->assertInstanceOf(Client::class, $client);
-    }
-
-    /**
-     * 测试客户端初始化（使用Config对象）
-     */
-    public function testClientInitializationWithConfigObject()
-    {
-        $config = new Config([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
+        $this->config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
             'sandbox' => true,
         ]);
-
-        $client = new Client($config);
-
-        $this->assertInstanceOf(Client::class, $client);
+        
+        $this->client = new Client($this->config);
     }
 
-    /**
-     * 测试无效配置抛出异常
-     */
-    public function testClientInitializationWithInvalidConfig()
+    public function testClientCreation()
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->assertInstanceOf(Client::class, $this->client);
+    }
 
-        $client = new Client('invalid_config');
+    public function testGetConfig()
+    {
+        $this->assertSame($this->config, $this->client->getConfig());
+    }
+
+    // 方法存在性测试
+    
+    /**
+     * 测试获取授权方法存在
+     */
+    public function testGetAuthMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'getAuth'));
     }
 
     /**
@@ -58,103 +47,7 @@ class ClientTest extends TestCase
      */
     public function testSendShipmentMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'sendShipment'));
-    }
-
-    /**
-     * 测试取件通知方法存在
-     */
-    public function testPickupNoticeMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'pickupNotice'));
-    }
-
-    /**
-     * 测试查询订单方法存在
-     */
-    public function testQueryOrderMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'queryOrder'));
-    }
-
-    /**
-     * 测试取消订单方法存在
-     */
-    public function testCancelOrderMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'cancelOrder'));
-    }
-
-    /**
-     * 测试查询轨迹方法存在
-     */
-    public function testQueryTrackingMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'queryTracking'));
-    }
-
-    /**
-     * 测试拦截件方法存在
-     */
-    public function testInterceptMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'intercept'));
-    }
-
-    /**
-     * 测试改件信息方法存在
-     */
-    public function testModifyMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'modify'));
-    }
-
-    /**
-     * 测试面单打印方法存在
-     */
-    public function testPrintLabelMethodExists()
-    {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'printLabel'));
+        $this->assertTrue(method_exists($this->client, 'sendShipment'));
     }
 
     /**
@@ -162,12 +55,23 @@ class ClientTest extends TestCase
      */
     public function testBatchSendShipmentMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
+        $this->assertTrue(method_exists($this->client, 'batchSendShipment'));
+    }
 
-        $this->assertTrue(method_exists($client, 'batchSendShipment'));
+    /**
+     * 测试取件通知方法存在
+     */
+    public function testPickupNoticeMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'pickupNotice'));
+    }
+
+    /**
+     * 测试查询订单方法存在
+     */
+    public function testQueryOrderMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'queryOrder'));
     }
 
     /**
@@ -175,12 +79,23 @@ class ClientTest extends TestCase
      */
     public function testBatchQueryOrdersMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
+        $this->assertTrue(method_exists($this->client, 'batchQueryOrders'));
+    }
 
-        $this->assertTrue(method_exists($client, 'batchQueryOrders'));
+    /**
+     * 测试取消订单方法存在
+     */
+    public function testCancelOrderMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'cancelOrder'));
+    }
+
+    /**
+     * 测试查询轨迹方法存在
+     */
+    public function testQueryTrackingMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'queryTracking'));
     }
 
     /**
@@ -188,12 +103,31 @@ class ClientTest extends TestCase
      */
     public function testBatchQueryTrackingMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
+        $this->assertTrue(method_exists($this->client, 'batchQueryTracking'));
+    }
 
-        $this->assertTrue(method_exists($client, 'batchQueryTracking'));
+    /**
+     * 测试拦截件方法存在
+     */
+    public function testInterceptMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'intercept'));
+    }
+
+    /**
+     * 测试改件信息方法存在
+     */
+    public function testModifyMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'modify'));
+    }
+
+    /**
+     * 测试面单打印方法存在
+     */
+    public function testPrintLabelMethodExists()
+    {
+        $this->assertTrue(method_exists($this->client, 'printLabel'));
     }
 
     /**
@@ -201,12 +135,7 @@ class ClientTest extends TestCase
      */
     public function testBatchPrintLabelsMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'batchPrintLabels'));
+        $this->assertTrue(method_exists($this->client, 'batchPrintLabels'));
     }
 
     /**
@@ -214,13 +143,10 @@ class ClientTest extends TestCase
      */
     public function testGetLabelTemplateMethodExists()
     {
-        $client = new Client([
-            'app_key' => 'test_key',
-            'app_secret' => 'test_secret',
-        ]);
-
-        $this->assertTrue(method_exists($client, 'getLabelTemplate'));
+        $this->assertTrue(method_exists($this->client, 'getLabelTemplate'));
     }
+
+    // API调用测试
 
     /**
      * 测试发货通知方法

@@ -40,4 +40,22 @@ class AuthTest extends TestCase
 
         $this->assertTrue(method_exists($auth, 'clearToken'));
     }
+
+    /**
+     * 测试清除令牌功能
+     */
+    public function testClearToken()
+    {
+        $config = new Config([
+            'app_key' => 'test_key',
+            'app_secret' => 'test_secret',
+        ]);
+
+        $auth = new Auth($config);
+        
+        // 测试清除令牌功能
+        $auth->clearToken();
+        // 验证令牌已被清除的逻辑
+        $this->assertSame('', $config->getAccessToken());
+    }
 }

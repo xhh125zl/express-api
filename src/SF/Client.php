@@ -1,12 +1,12 @@
 <?php
 
-namespace Kode\ExpressApi\EMS;
+namespace Kode\ExpressApi\SF;
 
 use Kode\ExpressApi\Common\ClientInterface;
 use Kode\ExpressApi\Common\Exception\ExpressApiException;
 
 /**
- * EMS API 客户端
+ * 顺丰速运API 客户端
  */
 class Client implements ClientInterface
 {
@@ -87,7 +87,7 @@ class Client implements ClientInterface
             );
 
             // 使用通用响应处理器处理响应
-            return \Kode\ExpressApi\Common\ResponseHandler::handle($response, 'ems');
+            return \Kode\ExpressApi\Common\ResponseHandler::handle($response, 'sf');
         } catch (\Exception $e) {
             if ($e instanceof ExpressApiException) {
                 throw $e;
@@ -107,7 +107,7 @@ class Client implements ClientInterface
     {
         // 验证必填字段
         $this->validateShipmentData($data);
-        return $this->request('POST', '/shipment', $data);
+        return $this->request('POST', '/order/create', $data);
     }
 
     /**
@@ -122,7 +122,7 @@ class Client implements ClientInterface
         foreach ($shipments as $shipment) {
             $this->validateShipmentData($shipment);
         }
-        return $this->request('POST', '/shipment/batch', ['shipments' => $shipments]);
+        return $this->request('POST', '/order/batch', ['orders' => $shipments]);
     }
 
     /**
@@ -136,7 +136,7 @@ class Client implements ClientInterface
     {
         // 验证必填字段
         $this->validatePickupData($data);
-        return $this->request('POST', '/pickup', $data);
+        return $this->request('POST', '/pickup/create', $data);
     }
 
     /**
@@ -151,7 +151,7 @@ class Client implements ClientInterface
         if (empty($orderId)) {
             throw new ExpressApiException('订单ID不能为空');
         }
-        return $this->request('GET', '/order/' . $orderId);
+        return $this->request('GET', '/order/query/' . $orderId);
     }
 
     /**
@@ -166,7 +166,7 @@ class Client implements ClientInterface
         if (empty($orderIds)) {
             throw new ExpressApiException('订单ID列表不能为空');
         }
-        return $this->request('POST', '/order/batch', ['order_ids' => $orderIds]);
+        return $this->request('POST', '/order/batch/query', ['order_ids' => $orderIds]);
     }
 
     /**
@@ -186,7 +186,7 @@ class Client implements ClientInterface
         if (!empty($reason)) {
             $data['reason'] = $reason;
         }
-        return $this->request('DELETE', '/order/' . $orderId, $data);
+        return $this->request('POST', '/order/cancel/' . $orderId, $data);
     }
 
     /**
@@ -202,7 +202,7 @@ class Client implements ClientInterface
         if (empty($trackingNumber)) {
             throw new ExpressApiException('运单号不能为空');
         }
-        $uri = '/tracking/' . $trackingNumber;
+        $uri = '/tracking/query/' . $trackingNumber;
         if ($language) {
             $uri .= '?language=' . $language;
         }
@@ -226,7 +226,7 @@ class Client implements ClientInterface
         if ($language) {
             $data['language'] = $language;
         }
-        return $this->request('POST', '/tracking/batch', $data);
+        return $this->request('POST', '/tracking/batch/query', $data);
     }
 
     /**
@@ -277,7 +277,7 @@ class Client implements ClientInterface
         if (empty($orderId)) {
             throw new ExpressApiException('订单ID不能为空');
         }
-        return $this->request('POST', '/order/' . $orderId . '/print', $data);
+        return $this->request('POST', '/label/print/' . $orderId, $data);
     }
 
     /**
@@ -294,7 +294,7 @@ class Client implements ClientInterface
             throw new ExpressApiException('订单ID列表不能为空');
         }
         $requestData = array_merge($data, ['order_ids' => $orderIds]);
-        return $this->request('POST', '/order/batch/print', $requestData);
+        return $this->request('POST', '/label/batch/print', $requestData);
     }
 
     /**

@@ -1,6 +1,6 @@
 {
     "name": "kode/express-api",
-    "description": "一个通用的快递API集成包，支持多种快递公司（EMS、韵达、申通、中通、菜鸟、顺丰等）",
+    "description": "一个通用的快递API集成包，支持多种快递公司（EMS、韵达、申通、中通、菜鸟、顺丰、通用打印面单设计器等）",
     "type": "library",
     "license": "MIT",
     "authors": [

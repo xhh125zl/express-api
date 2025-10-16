@@ -1,0 +1,365 @@
+/* LabelVisualizer.css - 面单可视化编辑器样式 */
+
+/* 面单预览容器 */
+.label-preview {
+    position: relative;
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    transition: transform 0.2s ease;
+}
+
+/* 字段基础样式 */
+.field {
+    position: absolute;
+    box-sizing: border-box;
+    cursor: move;
+    user-select: none;
+    transition: all 0.1s ease;
+    overflow: hidden;
+}
+
+/* 选中字段样式 */
+.field.selected {
+    box-shadow: 0 0 0 2px #007bff;
+    z-index: 1000;
+}
+
+/* 拖拽中的字段样式 */
+.field.dragging {
+    opacity: 0.8;
+    z-index: 2000;
+}
+
+/* 调整大小的句柄 */
+.resize-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: #007bff;
+    border-radius: 2px;
+    cursor: se-resize;
+    z-index: 10;
+    transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+    background-color: #0056b3;
+}
+
+/* 字段标签样式 */
+.field-label {
+    font-size: 7px;
+    color: #666666;
+    display: block;
+    font-weight: normal;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 字段内容样式 */
+.field-content {
+    font-size: 8px;
+    color: #333333;
+    padding: 2px 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+/* 条形码占位符样式 */
+.barcode-placeholder {
+    margin: 5px auto;
+    text-align: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border: 1px dashed #ddd;
+    color: #666;
+    font-size: 7px;
+}
+
+/* 二维码占位符样式 */
+.qrcode-placeholder {
+    margin: 5px auto;
+    width: 80%;
+    height: 80%;
+    background-color: #f8f9fa;
+    border: 1px dashed #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 7px;
+}
+
+/* 工具栏样式 */
+.label-toolbar {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 工具栏按钮 */
+.toolbar-btn {
+    padding: 6px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.toolbar-btn:hover {
+    background-color: #0056b3;
+}
+
+.toolbar-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* 缩放控制 */
+.zoom-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.zoom-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.zoom-btn:hover {
+    background-color: #f8f9fa;
+}
+
+.zoom-value {
+    font-size: 14px;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* 属性编辑面板 */
+.property-panel {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    width: 250px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+}
+
+.property-panel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 16px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.property-group {
+    margin-bottom: 15px;
+}
+
+.property-group h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #666;
+    font-weight: normal;
+}
+
+.property-item {
+    margin-bottom: 10px;
+}
+
+.property-item label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #555;
+}
+
+.property-item input,
+.property-item select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.property-item input[type="checkbox"] {
+    width: auto;
+    margin-right: 5px;
+}
+
+.property-item.checkbox {
+    display: flex;
+    align-items: center;
+}
+
+.property-item.checkbox label {
+    margin-bottom: 0;
+    margin-left: 5px;
+}
+
+/* 颜色选择器 */
+.color-input {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.color-preview {
+    width: 20px;
+    height: 20px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .property-panel {
+        position: relative;
+        right: auto;
+        top: auto;
+        width: 100%;
+        max-height: none;
+        margin-top: 20px;
+    }
+    
+    .label-toolbar {
+        flex-wrap: wrap;
+    }
+}
+
+/* 加载动画 */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 错误提示样式 */
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    border: 1px solid #f5c6cb;
+    font-size: 14px;
+}
+
+/* 成功提示样式 */
+.success-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    border: 1px solid #c3e6cb;
+    font-size: 14px;
+}
+
+/* 模板列表样式 */
+.template-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.template-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s;
+}
+
+.template-item:hover {
+    background-color: #f8f9fa;
+}
+
+.template-item.selected {
+    background-color: #e3f2fd;
+    color: #0d47a1;
+    font-weight: 500;
+}
+
+/* 面单类型切换器 */
+.size-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.size-option {
+    padding: 6px 12px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.size-option:hover {
+    background-color: #f8f9fa;
+}
+
+.size-option.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}

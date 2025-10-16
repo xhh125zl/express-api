@@ -108,6 +108,16 @@ class Config extends AbstractConfig
     }
 
     /**
+     * 获取是否使用沙箱环境
+     *
+     * @return bool
+     */
+    public function isSandbox(): bool
+    {
+        return $this->get('sandbox', false);
+    }
+
+    /**
      * 设置超时时间
      *
      * @param int $timeout 超时时间
@@ -119,6 +129,16 @@ class Config extends AbstractConfig
     }
 
     /**
+     * 获取超时时间
+     *
+     * @return int
+     */
+    public function getTimeout(): int
+    {
+        return $this->get('timeout', 30);
+    }
+
+    /**
      * 设置API版本
      *
      * @param string $version API版本
@@ -127,6 +147,16 @@ class Config extends AbstractConfig
     public function setVersion(string $version): self
     {
         return $this->set('version', $version);
+    }
+
+    /**
+     * 获取API版本
+     *
+     * @return string
+     */
+    public function getVersion(): string
+    {
+        return $this->get('version', 'v1');
     }
 
     /**
@@ -149,5 +179,43 @@ class Config extends AbstractConfig
     public function getSandboxUrl(): string
     {
         return 'https://api-sandbox.ems.com.cn/' . $this->getVersion() . '/';
+    }
+
+    /**
+     * 获取生产环境URL
+     *
+     * @return string
+     */
+    public function getProductionUrl(): string
+    {
+        return 'https://api.ems.com.cn/' . $this->getVersion() . '/';
+    }
+
+    /**
+     * 验证配置是否完整
+     *
+     * @return bool
+     */
+    public function isValid(): bool
+    {
+        return !empty($this->getAppKey()) && !empty($this->getAppSecret());
+    }
+
+    /**
+     * 获取调试信息
+     *
+     * @return array
+     */
+    public function getDebugInfo(): array
+    {
+        return [
+            'version' => $this->getVersion(),
+            'sandbox' => $this->isSandbox(),
+            'timeout' => $this->getTimeout(),
+            'base_url' => $this->getBaseUrl(),
+            'has_app_key' => !empty($this->getAppKey()),
+            'has_app_secret' => !empty($this->getAppSecret()),
+            'has_access_token' => !empty($this->getAccessToken()),
+        ];
     }
 }

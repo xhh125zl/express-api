@@ -1,0 +1,71 @@
+<?php
+
+namespace Kode\ExpressApi\Tests\Cainiao;
+
+use Kode\ExpressApi\Cainiao\Config;
+use Kode\ExpressApi\Common\AbstractConfig;
+use PHPUnit\Framework\TestCase;
+
+class ConfigTest extends TestCase
+{
+    public function testConfigCreation()
+    {
+        $config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
+            'partner_id' => 'test_partner_id',
+            'sandbox' => true,
+        ]);
+        
+        $this->assertInstanceOf(Config::class, $config);
+        $this->assertInstanceOf(AbstractConfig::class, $config);
+    }
+
+    public function testGetAppKey()
+    {
+        $config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
+            'partner_id' => 'test_partner_id',
+            'sandbox' => true,
+        ]);
+        
+        $this->assertEquals('test_app_key', $config->getAppKey());
+    }
+
+    public function testGetAppSecret()
+    {
+        $config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
+            'partner_id' => 'test_partner_id',
+            'sandbox' => true,
+        ]);
+        
+        $this->assertEquals('test_app_secret', $config->getAppSecret());
+    }
+
+    public function testGetPartnerId()
+    {
+        $config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
+            'partner_id' => 'test_partner_id',
+            'sandbox' => true,
+        ]);
+        
+        $this->assertEquals('test_partner_id', $config->getPartnerId());
+    }
+
+    public function testIsSandbox()
+    {
+        $config = new Config([
+            'app_key' => 'test_app_key',
+            'app_secret' => 'test_app_secret',
+            'partner_id' => 'test_partner_id',
+            'sandbox' => true,
+        ]);
+        
+        $this->assertTrue($config->isSandbox());
+    }
+}

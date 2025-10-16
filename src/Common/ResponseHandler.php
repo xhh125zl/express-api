@@ -67,6 +67,15 @@ class ResponseHandler
                     $code = $response['error']['code'] ?? $code;
                 }
                 break;
+            case 'sf':
+                if (isset($response['error'])) {
+                    $message = $response['error']['message'] ?? $message;
+                    $code = $response['error']['code'] ?? $code;
+                } elseif (isset($response['status']) && $response['status'] !== 'success') {
+                    $message = $response['message'] ?? $message;
+                    $code = $response['code'] ?? $code;
+                }
+                break;
 
             // 其他快递公司的异常处理逻辑可以在这里添加
         }
@@ -83,9 +92,19 @@ class ResponseHandler
      */
     protected static function normalize(array $response, string $courier): array
     {
-        // 移除EMS特有的包装层
-        if (strtolower($courier) === 'ems' && isset($response['data'])) {
-            return $response['data'];
+        switch (strtolower($courier)) {
+            case 'ems':
+                // 移除EMS特有的包装层
+                if (isset($response['data'])) {
+                    return $response['data'];
+                }
+                break;
+            case 'sf':
+                // 处理SF特有的响应格式
+                if (isset($response['data']) && isset($response['status']) && $response['status'] === 'success') {
+                    return $response['data'];
+                }
+                break;
         }
 
         return $response;
