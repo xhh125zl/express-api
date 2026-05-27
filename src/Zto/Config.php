@@ -50,7 +50,7 @@ class Config extends AbstractConfig
      */
     public function getProductionUrl(): string
     {
-        return 'https://api.zto.com';
+        return 'https://japi.zto.com';
     }
 
     /**
