@@ -3,11 +3,13 @@
 namespace Kode\ExpressApi\Zto;
 
 use Kode\ExpressApi\Common\AuthInterface;
-use Kode\ExpressApi\Common\Exception\ExpressApiException;
-use Kode\ExpressApi\Common\HttpClient;
 
 /**
- * 中通快递API 认证类
+ * 中通快递开放平台 签名认证类
+ *
+ * 基于中通官方SDK（ZopClient）的签名规范：
+ * - 请求头 x-companyid: AppKey
+ * - 请求头 x-datadigest: Base64(MD5(请求体 + AppSecret))
  */
 class Auth implements AuthInterface
 {
@@ -17,16 +19,6 @@ class Auth implements AuthInterface
     protected $config;
 
     /**
-     * @var string 访问令牌
-     */
-    protected $accessToken;
-
-    /**
-     * @var int 令牌过期时间戳
-     */
-    protected $expiresAt;
-
-    /**
      * 构造函数
      *
      * @param Config $config 配置信息
@@ -34,7 +26,6 @@ class Auth implements AuthInterface
     public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->accessToken = $config->getAccessToken();
     }
 
     /**
@@ -48,88 +39,61 @@ class Auth implements AuthInterface
     }
 
     /**
-     * 获取访问令牌
+     * 生成数据摘要签名（x-datadigest）
+     *
+     * 签名算法：Base64( MD5( 请求body + AppSecret ) )
+     *
+     * @param string $body JSON格式的请求体字符串
+     * @return string Base64编码的MD5签名值
+     */
+    public function generateDataDigest(string $body): string
+    {
+        $strToSign = $body . $this->config->getAppSecret();
+        return base64_encode(md5($strToSign, true));
+    }
+
+    /**
+     * 构建认证请求头
+     *
+     * 返回中通开放平台所需的认证头：
+     * - Content-Type: application/json; charset=UTF-8
+     * - x-companyid: AppKey
+     * - x-datadigest: 签名值
+     *
+     * @param string $body JSON格式的请求体字符串
+     * @return array 认证请求头数组
+     */
+    public function buildAuthHeaders(string $body): array
+    {
+        return [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'x-companyid' => $this->config->getAppKey(),
+            'x-datadigest' => $this->generateDataDigest($body),
+        ];
+    }
+
+    /**
+     * 兼容 AuthInterface：获取访问令牌
+     *
+     * 中通开放平台使用签名认证，不使用Token。
+     * 此方法返回空字符串以保持接口兼容性。
      *
      * @return string
-     * @throws ExpressApiException
      */
     public function getAccessToken(): string
     {
-        // 如果令牌不存在或已过期，重新获取
-        if (!$this->accessToken || $this->isExpired()) {
-            $this->refreshToken();
-        }
-
-        return $this->accessToken;
+        return '';
     }
 
     /**
-     * 刷新访问令牌
+     * 兼容 AuthInterface：清除当前令牌
      *
-     * @return string 新的访问令牌
-     * @throws ExpressApiException
-     */
-    public function refreshToken(): string
-    {
-        try {
-            $url = $this->config->getBaseUrl() . '/auth/token';
-            
-            // 准备请求数据
-            $data = [
-                'app_key' => $this->config->getAppKey(),
-                'app_secret' => $this->config->getAppSecret()
-            ];
-
-            // 发送请求
-            $response = HttpClient::request(
-                'POST',
-                $url,
-                $data,
-                ['Content-Type' => 'application/json'],
-                $this->config->getTimeout()
-            );
-
-            // 检查响应
-            if (!isset($response['data']['access_token'])) {
-                throw new ExpressApiException('获取中通访问令牌失败: 无效的响应');
-            }
-
-            // 存储令牌和过期时间
-            $this->accessToken = $response['data']['access_token'];
-            $expiresIn = $response['data']['expires_in'] ?? 3600; // 默认1小时过期
-            $this->expiresAt = time() + $expiresIn - 300; // 提前5分钟刷新
-
-            // 更新配置中的令牌
-            $this->config->setAccessToken($this->accessToken);
-
-            return $this->accessToken;
-        } catch (\Exception $e) {
-            if ($e instanceof ExpressApiException) {
-                throw $e;
-            }
-            throw new ExpressApiException('获取中通访问令牌失败: ' . $e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
-     * 检查令牌是否已过期
-     *
-     * @return bool
-     */
-    protected function isExpired(): bool
-    {
-        return $this->expiresAt && time() >= $this->expiresAt;
-    }
-
-    /**
-     * 清除当前令牌
+     * 中通开放平台无Token概念，此方法为空操作。
      *
      * @return void
      */
     public function clearToken(): void
     {
-        $this->accessToken = null;
-        $this->expiresAt = null;
-        $this->config->setAccessToken(null);
+        // 无状态签名，无需清除
     }
 }

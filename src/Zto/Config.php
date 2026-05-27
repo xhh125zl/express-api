@@ -5,7 +5,9 @@ namespace Kode\ExpressApi\Zto;
 use Kode\ExpressApi\Common\AbstractConfig;
 
 /**
- * 中通快递API 配置类
+ * 中通快递开放平台 配置类
+ *
+ * 基于中通官方开放平台（open.zto.com）SDK规范实现
  */
 class Config extends AbstractConfig
 {
@@ -17,42 +19,28 @@ class Config extends AbstractConfig
     protected $defaults = [
         'app_key' => '',
         'app_secret' => '',
-        'access_token' => '',
         'sandbox' => false,
         'timeout' => 30,
-        'version' => 'v1',
     ];
 
     /**
-     * 获取API版本
-     *
-     * @return string
-     */
-    public function getVersion(): string
-    {
-        return $this->get('version', 'v1');
-    }
-
-    /**
-     * 获取基础URL
+     * 获取基础URL（根据沙箱环境自动选择）
      *
      * @return string
      */
     public function getBaseUrl(): string
     {
-        return $this->isSandbox() ?
-            'https://api-zto-sandbox.kdniao.com/' . $this->getVersion() :
-            'https://api-zto.kdniao.com/' . $this->getVersion();
+        return $this->isSandbox() ? $this->getSandboxUrl() : $this->getProductionUrl();
     }
 
     /**
-     * 获取沙箱环境URL
+     * 获取沙箱/测试环境URL
      *
      * @return string
      */
     public function getSandboxUrl(): string
     {
-        return 'https://api-zto-sandbox.kdniao.com/' . $this->getVersion() . '/';
+        return 'https://japi-test.zto.com';
     }
 
     /**
@@ -62,11 +50,11 @@ class Config extends AbstractConfig
      */
     public function getProductionUrl(): string
     {
-        return 'https://api-zto.kdniao.com/' . $this->getVersion() . '/';
+        return 'https://api.zto.com';
     }
 
     /**
-     * 获取应用密钥
+     * 获取应用Key（即中通开放平台的 companyId / AppKey）
      *
      * @return string
      */
@@ -76,34 +64,12 @@ class Config extends AbstractConfig
     }
 
     /**
-     * 获取应用密钥
+     * 获取应用密钥（即中通开放平台的 key / AppSecret）
      *
      * @return string
      */
     public function getAppSecret(): string
     {
         return $this->get('app_secret', '');
-    }
-
-    /**
-     * 获取访问令牌
-     *
-     * @return string
-     */
-    public function getAccessToken(): string
-    {
-        return $this->get('access_token', '');
-    }
-
-    /**
-     * 设置访问令牌
-     *
-     * @param string|null $accessToken
-     * @return $this
-     */
-    public function setAccessToken(?string $accessToken): self
-    {
-        $this->set('access_token', $accessToken ?? '');
-        return $this;
     }
 }

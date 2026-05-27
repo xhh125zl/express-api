@@ -4,8 +4,12 @@ namespace Kode\ExpressApi\Tests\Zto;
 
 use Kode\ExpressApi\Zto\Client;
 use Kode\ExpressApi\Zto\Config;
+use Kode\ExpressApi\Common\Exception\ExpressApiException;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * 中通快递客户端测试类（基于沙箱环境）
+ */
 class ClientTest extends TestCase
 {
     private $client;
@@ -13,12 +17,14 @@ class ClientTest extends TestCase
 
     protected function setUp(): void
     {
+        // 使用沙箱环境凭证初始化客户端
         $this->config = new Config([
-            'app_key' => 'test_app_key',
-            'app_secret' => 'test_app_secret',
+            'app_key' => 'app_key',
+            'app_secret' => 'app_secret',
             'sandbox' => true,
+            'timeout' => 30,
         ]);
-        
+
         $this->client = new Client($this->config);
     }
 
@@ -32,219 +38,193 @@ class ClientTest extends TestCase
         $this->assertSame($this->config, $this->client->getConfig());
     }
 
-    // 方法存在性测试
-    
-    /**
-     * 测试获取授权方法存在
-     */
-    public function testGetAuthMethodExists()
+    public function testGetAuthReturnsAuthInstance()
     {
-        $this->assertTrue(method_exists($this->client, 'getAuth'));
+        $auth = $this->client->getAuth();
+        $this->assertInstanceOf(\Kode\ExpressApi\Zto\Auth::class, $auth);
     }
 
-    /**
-     * 测试发货通知方法存在
-     */
-    public function testSendShipmentMethodExists()
+    // ========== 方法存在性测试 ==========
+
+    /** @test */
+    public function sendShipment_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'sendShipment'));
     }
 
-    /**
-     * 测试批量发货通知方法存在
-     */
-    public function testBatchSendShipmentMethodExists()
+    /** @test */
+    public function batchSendShipment_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'batchSendShipment'));
     }
 
-    /**
-     * 测试取件通知方法存在
-     */
-    public function testPickupNoticeMethodExists()
+    /** @test */
+    public function pickupNotice_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'pickupNotice'));
     }
 
-    /**
-     * 测试查询订单方法存在
-     */
-    public function testQueryOrderMethodExists()
+    /** @test */
+    public function queryOrder_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'queryOrder'));
     }
 
-    /**
-     * 测试批量查询订单方法存在
-     */
-    public function testBatchQueryOrdersMethodExists()
+    /** @test */
+    public function batchQueryOrders_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'batchQueryOrders'));
     }
 
-    /**
-     * 测试取消订单方法存在
-     */
-    public function testCancelOrderMethodExists()
+    /** @test */
+    public function cancelOrder_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'cancelOrder'));
     }
 
-    /**
-     * 测试查询轨迹方法存在
-     */
-    public function testQueryTrackingMethodExists()
+    /** @test */
+    public function queryTracking_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'queryTracking'));
     }
 
-    /**
-     * 测试拦截订单方法存在
-     */
-    public function testInterceptOrderMethodExists()
+    /** @test */
+    public function interceptOrder_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'interceptOrder'));
     }
 
-    /**
-     * 测试更新订单信息方法存在
-     */
-    public function testUpdateOrderInfoMethodExists()
+    /** @test */
+    public function updateOrderInfo_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'updateOrderInfo'));
     }
 
-    /**
-     * 测试拦截件方法存在
-     */
-    public function testInterceptMethodExists()
+    /** @test */
+    public function intercept_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'intercept'));
     }
 
-    /**
-     * 测试改件信息方法存在
-     */
-    public function testModifyMethodExists()
+    /** @test */
+    public function modify_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'modify'));
     }
 
-    /**
-     * 测试面单打印方法存在
-     */
-    public function testPrintLabelMethodExists()
+    /** @test */
+    public function printLabel_method_exists()
     {
         $this->assertTrue(method_exists($this->client, 'printLabel'));
     }
 
-    // API调用测试
+    // ========== 参数校验测试 ==========
 
     /**
-     * 测试发货通知方法
+     * 测试下单缺少必填字段时抛出异常
      */
-    public function testSendShipment()
+    public function testSendShipmentThrowsExceptionWhenMissingRequiredFields()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('orderId');
+
+        $this->client->sendShipment([]); // 缺少 orderId, sender, receiver
     }
 
     /**
-     * 测试批量发货通知方法
+     * 测试取消订单缺少订单号时抛出异常
      */
-    public function testBatchSendShipment()
+    public function testCancelOrderThrowsExceptionWhenOrderIdEmpty()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('不能为空');
+
+        $this->client->cancelOrder('');
     }
 
     /**
-     * 测试取件通知方法
+     * 测试查询轨迹运单号为空时抛出异常
      */
-    public function testPickupNotice()
+    public function testQueryTrackingThrowsExceptionWhenBillCodeEmpty()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('运单号');
+
+        $this->client->queryTracking('');
     }
 
     /**
-     * 测试查询订单方法
+     * 测试拦截缺少原因时抛出异常
      */
-    public function testQueryOrder()
+    public function testInterceptThrowsExceptionWhenMissingReason()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('拦截原因');
+
+        $this->client->intercept('order123', []);
     }
 
     /**
-     * 测试批量查询订单方法
+     * 测试改件数据为空时抛出异常
      */
-    public function testBatchQueryOrders()
+    public function testModifyThrowsExceptionWhenDataEmpty()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('更新数据');
+
+        $this->client->modify('order123', []);
     }
 
     /**
-     * 测试取消订单方法
+     * 测试面单打印订单号为空时抛出异常
      */
-    public function testCancelOrder()
+    public function testPrintLabelThrowsExceptionWhenOrderIdEmpty()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('商家订单号');
+
+        $this->client->printLabel('');
     }
 
-    /**
-     * 测试查询轨迹方法
-     */
-    public function testQueryTracking()
+    // ========== 构造函数参数类型校验测试 ==========
+
+    public function testConstructorThrowsOnInvalidConfigType()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $this->expectException(\InvalidArgumentException::class);
+        new Client('invalid_config_string');
     }
 
-    /**
-     * 测试拦截订单方法
-     */
-    public function testInterceptOrder()
+    public function testConstructorAcceptsArray()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $client = new Client([
+            'app_key' => 'k',
+            'app_secret' => 's',
+            'sandbox' => true,
+        ]);
+        $this->assertInstanceOf(Client::class, $client);
     }
 
-    /**
-     * 测试更新订单信息方法
-     */
-    public function testUpdateOrderInfo()
+    public function testConstructorAcceptsConfigObject()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        $config = new Config(['app_key' => 'k', 'app_secret' => 's', 'sandbox' => true]);
+        $client = new Client($config);
+        $this->assertInstanceOf(Client::class, $client);
     }
 
-    /**
-     * 测试拦截件方法
-     */
-    public function testIntercept()
-    {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
-    }
+    // ========== 签名机制集成测试 ==========
 
     /**
-     * 测试改件信息方法
+     * 测试签名认证头在请求中正确生成
+     *
+     * 通过验证 auth 对象的签名方法来间接确认 Client 使用了正确的认证方式
      */
-    public function testModify()
+    public function testClientUsesCorrectAuthenticationMechanism()
     {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
-    }
+        $auth = $this->client->getAuth();
 
-    /**
-     * 测试面单打印方法
-     */
-    public function testPrintLabel()
-    {
-        // 这里应该使用模拟对象来测试API调用
-        $this->markTestIncomplete('需要实现实际的API调用测试');
+        // 验证 auth 能正确生成 x-companyid 头
+        $headers = $auth->buildAuthHeaders('{}');
+        $this->assertEquals('app_key', $headers['x-companyid']);
+        $this->assertNotEmpty($headers['x-datadigest']);
     }
 }

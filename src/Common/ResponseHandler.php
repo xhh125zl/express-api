@@ -41,6 +41,10 @@ class ResponseHandler
             case 'ems':
                 return isset($response['success']) && !$response['success'];
 
+            case 'zto':
+                // 中通开放平台: status=false 表示失败
+                return isset($response['status']) && $response['status'] === false;
+
             // 其他快递公司的错误检查逻辑可以在这里添加
             default:
                 return isset($response['error']) || isset($response['code']) && $response['code'] != 200;
@@ -76,6 +80,13 @@ class ResponseHandler
                     $code = $response['code'] ?? $code;
                 }
                 break;
+            case 'zto':
+                // 中通开放平台错误格式
+                if (isset($response['status']) && $response['status'] === false) {
+                    $message = $response['message'] ?? $message;
+                    $code = $response['code'] ?? 0;
+                }
+                break;
 
             // 其他快递公司的异常处理逻辑可以在这里添加
         }
@@ -102,6 +113,14 @@ class ResponseHandler
             case 'sf':
                 // 处理SF特有的响应格式
                 if (isset($response['data']) && isset($response['status']) && $response['status'] === 'success') {
+                    return $response['data'];
+                }
+                break;
+            case 'zto':
+                // 中通开放平台: 返回result或data字段作为业务数据
+                if (isset($response['result'])) {
+                    return $response['result'];
+                } elseif (isset($response['data'])) {
                     return $response['data'];
                 }
                 break;

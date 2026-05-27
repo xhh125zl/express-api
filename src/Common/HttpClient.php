@@ -14,9 +14,10 @@ class HttpClient
      *
      * @param string $method HTTP方法
      * @param string $url 请求URL
-     * @param array $data 请求数据
+     * @param array $data 请求数据（将被JSON编码为请求体）
      * @param array $headers 请求头
      * @param int $timeout 超时时间（秒）
+     * @param string|null $rawBody 原始请求体字符串（设置后将忽略$data，直接发送此字符串）
      * @return array
      * @throws ExpressApiException
      */
@@ -25,7 +26,8 @@ class HttpClient
         string $url,
         array $data = [],
         array $headers = [],
-        int $timeout = 30
+        int $timeout = 30,
+        ?string $rawBody = null
     ): array {
         $curl = curl_init();
 
@@ -37,7 +39,10 @@ class HttpClient
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
         ]);
 
-        if (!empty($data) && in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'])) {
+        // 设置请求体：优先使用 rawBody，否则使用 data 的 JSON 编码
+        if ($rawBody !== null && in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'])) {
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $rawBody);
+        } elseif (!empty($data) && in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'])) {
             curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
         }
 
