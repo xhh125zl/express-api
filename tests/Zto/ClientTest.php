@@ -126,9 +126,9 @@ class ClientTest extends TestCase
     public function testSendShipmentThrowsExceptionWhenMissingRequiredFields()
     {
         $this->expectException(ExpressApiException::class);
-        $this->expectExceptionMessage('orderId');
+        $this->expectExceptionMessage('下单数据');
 
-        $this->client->sendShipment([]); // 缺少 orderId, sender, receiver
+        $this->client->sendShipment([]); // 缺少必填字段
     }
 
     /**
@@ -181,7 +181,7 @@ class ClientTest extends TestCase
     public function testPrintLabelThrowsExceptionWhenOrderIdEmpty()
     {
         $this->expectException(ExpressApiException::class);
-        $this->expectExceptionMessage('商家订单号');
+        $this->expectExceptionMessage('运单号');
 
         $this->client->printLabel('');
     }

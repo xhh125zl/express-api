@@ -91,7 +91,7 @@ class ResponseHandler
             // 其他快递公司的异常处理逻辑可以在这里添加
         }
 
-        return new ExpressApiException($message, $code, $details);
+        return new ExpressApiException($message, $code, null, $details);
     }
 
     /**

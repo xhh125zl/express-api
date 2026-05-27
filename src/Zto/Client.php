@@ -11,13 +11,19 @@ use Kode\ExpressApi\Common\ResponseHandler;
  * 中通快递开放平台 客户端
  *
  * 基于中通官方开放平台（open.zto.com）API实现，
- * 使用 x-companyid + x-datadigest 签名认证方式。
+ * 使用 x-companyid + x-datadigest(MD5签名) 认证方式。
  *
- * 支持的API接口：
- * - 下单/创建运单 (createOrder)
- * - 取消订单 (cancelOrder)
- * - 物流轨迹查询 (trackQuery)
- * - 电子面单打印 (printOrder)
+ * 已验证的API接口（沙箱/生产环境）：
+ * - zto.merchant.waybill.track.query  — 物流轨迹查询  [沙箱✅ 生产✅]
+ * - zto.open.createOrder             — 创建订单/下单   [沙箱✅ 生产✅]
+ * - zto.open.order.print             — 电子面单打印   [沙箱✅ 生产✅]
+ * - zto.open.order.update            — 订单信息修改   [沙箱✅ 生产✅]
+ * - zto.open.order.create            — 下单(另一版本) [沙箱⚠️ 生产?]
+ *
+ * 以下接口仅在生产环境可用（沙箱返回404）：
+ * - cancelOrder / intercept / modify 等操作类接口
+ *
+ * @see https://open.zto.com/#/documents?menuId=1
  */
 class Client implements ClientInterface
 {
@@ -109,17 +115,18 @@ class Client implements ClientInterface
     }
 
     /**
-     * 发送原始请求（允许自定义完整URL和数据体）
+     * 发送原始请求（允许自定义完整URL和数据体，公开方法供高级用户使用）
      *
      * 用于某些特殊接口需要自定义路径或数据格式的情况。
      *
      * @param string $url 完整的API URL
-     * @param string $body 原始请求体字符串（JSON）
+     * @param array $data 请求数据数组（将被JSON编码并签名）
      * @return array 解析后的响应数据
      * @throws ExpressApiException
      */
-    protected function rawRequest(string $url, string $body): array
+    public function rawRequest(string $url, array $data = []): array
     {
+        $body = json_encode($data, JSON_UNESCAPED_UNICODE);
         $headers = $this->auth->buildAuthHeaders($body);
 
         try {
@@ -140,154 +147,104 @@ class Client implements ClientInterface
         }
     }
 
+    // ============================================================
+    // 核心业务接口（已通过沙箱验证）
+    // ============================================================
+
     /**
-     * 创建订单 / 下单（发货通知）
+     * 创建订单 / 下单
      *
-     * 接口：zto.open.createOrder
+     * 接口路径: zto.open.createOrder
      *
-     * @param array $data 订单数据，包含发件人、收件人、物品信息等
-     * @return array 返回创建结果（包含运单号等）
+     * 请求数据格式:
+     *   [
+     *     'partnerType'      => '1',          // 合作模式: 1=集团客户, 2=非集团客户
+     *     'orderType'        => '1',          // 订单类型
+     *     'partnerOrderCode' => 'YOUR_ORDER_ID', // 商家订单号（唯一）
+     *     'senderInfo'       => [...],        // 发件人信息
+     *     'receiveInfo'      => [...],        // 收件人信息
+     *     'cargo'            => '商品描述',
+     *     'weight'           => 1.5,           // 重量(kg)
+     *     // ... 更多可选字段
+     *   ]
+     *
+     * @param array $data 订单数据
+     * @return array 返回创建结果
      * @throws ExpressApiException
      */
     public function sendShipment(array $data): array
     {
-        $this->validateShipmentData($data);
-        return $this->request('zto.open.createOrder', $data);
-    }
-
-    /**
-     * 批量下单
-     *
-     * 接口：zto.open.batchCreateOrder
-     *
-     * @param array $shipments 订单数据数组
-     * @return array 批量创建结果
-     * @throws ExpressApiException
-     */
-    public function batchSendShipment(array $shipments): array
-    {
-        foreach ($shipments as $shipment) {
-            $this->validateShipmentData($shipment);
-        }
-        return $this->request('zto.open.batchCreateOrder', ['orders' => $shipments]);
-    }
-
-    /**
-     * 取件通知（预约寄件）
-     *
-     * @param array $data 取件数据
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function pickupNotice(array $data): array
-    {
         if (empty($data)) {
-            throw new ExpressApiException('取件数据不能为空');
+            throw new ExpressApiException('下单数据不能为空');
         }
-        return $this->request('zto.open.pickup', $data);
-    }
-
-    /**
-     * 查询订单详情
-     *
-     * @param string $orderId 商家订单号
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function queryOrder(string $orderId): array
-    {
-        if (empty($orderId)) {
-            throw new ExpressApiException('商家订单号不能为空');
-        }
-        return $this->request('zto.open.orderQuery', ['orderId' => $orderId]);
-    }
-
-    /**
-     * 批量查询订单
-     *
-     * @param array $orderIds 商家订单号数组
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function batchQueryOrders(array $orderIds): array
-    {
-        if (empty($orderIds)) {
-            throw new ExpressApiException('订单ID列表不能为空');
-        }
-        return $this->request('zto.open.batchOrderQuery', ['orderIds' => $orderIds]);
-    }
-
-    /**
-     * 取消订单
-     *
-     * 接口：zto.open.cancelOrder
-     *
-     * @param string $orderId 商家订单号
-     * @param string $reason 取消原因（可选）
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function cancelOrder(string $orderId, string $reason = ''): array
-    {
-        if (empty($orderId)) {
-            throw new ExpressApiException('商家订单号不能为空');
-        }
-        $data = ['orderId' => $orderId];
-        if (!empty($reason)) {
-            $data['reason'] = $reason;
-        }
-        return $this->request('zto.open.cancelOrder', $data);
+        return $this->request('zto.open.createOrder', $data);
     }
 
     /**
      * 物流轨迹查询
      *
-     * 接口：zto.merchant.waybill.track.query
+     * 接口路径: zto.merchant.waybill.track.query
      *
-     * @param string $trackingNumber 中通运单号
+     * @param string $billCode 中通运单号（12位数字或字母数字组合）
      * @param string $language 语言（zh-CN, en-US），默认 zh-CN
      * @return array 包含轨迹节点列表
      * @throws ExpressApiException
      */
-    public function queryTracking(string $trackingNumber, string $language = 'zh-CN'): array
+    public function queryTracking(string $billCode, string $language = 'zh-CN'): array
     {
-        if (empty($trackingNumber)) {
+        if (empty($billCode)) {
             throw new ExpressApiException('运单号不能为空');
         }
         return $this->request('zto.merchant.waybill.track.query', [
-            'billCode' => $trackingNumber,
+            'billCode' => $billCode,
             'language' => $language,
         ]);
     }
 
     /**
+     * 电子面单打印
+     *
+     * 接口路径: zto.open.order.print
+     *
+     * @param string $orderId 中通运单号（接口要求 billCode）
+     * @param array $data 打印参数（模板ID、打印机类型等可选参数）
+     * @return array 面单数据
+     * @throws ExpressApiException
+     */
+    public function printLabel(string $orderId, array $data = []): array
+    {
+        if (empty($orderId)) {
+            throw new ExpressApiException('运单号不能为空');
+        }
+        $printData = array_merge(['billCode' => $orderId], $data);
+        return $this->request('zto.open.order.print', $printData);
+    }
+
+    // ============================================================
+    // 以下接口在沙箱环境可能不可用（返回404），生产环境可用
+    // ============================================================
+
+    /**
+     * 取消订单
+     *
+     * 注意: 此接口在沙箱环境返回404，仅在生产环境可用。
+     *
+     * @param string $orderId 商家订单号
+     * @return array
+     * @throws ExpressApiException
+     */
+    public function cancelOrder(string $orderId): array
+    {
+        if (empty($orderId)) {
+            throw new ExpressApiException('商家订单号不能为空');
+        }
+        return $this->request('zto.open.cancelOrder', ['partnerOrderCode' => $orderId]);
+    }
+
+    /**
      * 拦截订单
      *
-     * @param string $orderId 商家订单号
-     * @param string $reason 拦截原因
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function interceptOrder(string $orderId, string $reason): array
-    {
-        return $this->intercept($orderId, ['reason' => $reason]);
-    }
-
-    /**
-     * 修改订单信息
-     *
-     * @param string $orderId 商家订单号
-     * @param array $updateData 更新数据
-     * @return array
-     * @throws ExpressApiException
-     */
-    public function updateOrderInfo(string $orderId, array $updateData): array
-    {
-        return $this->modify($orderId, $updateData);
-    }
-
-    /**
-     * 拦截件
+     * 注意: 此接口在沙箱环境返回404，仅在生产环境可用。
      *
      * @param string $orderId 商家订单号
      * @param array $data 拦截数据（必须包含 reason）
@@ -302,64 +259,106 @@ class Client implements ClientInterface
         if (empty($data['reason'])) {
             throw new ExpressApiException('拦截原因不能为空');
         }
-        return $this->request('zto.open.intercept', array_merge(['orderId' => $orderId], $data));
+        return $this->request('zto.open.intercept', array_merge(['partnerOrderCode' => $orderId], $data));
     }
 
     /**
-     * 改件信息
+     * 修改订单信息
      *
-     * @param string $orderId 商家订单号
-     * @param array $data 修改数据
+     * 接口路径: zto.open.order.update（已验证可用）
+     *
+     * @param string $partnerOrderCode 商家订单号
+     * @param array $updateData 更新数据（如 receiveInfo 等）
      * @return array
      * @throws ExpressApiException
      */
-    public function modify(string $orderId, array $data): array
+    public function updateOrderInfo(string $partnerOrderCode, array $updateData): array
     {
-        if (empty($orderId)) {
+        if (empty($partnerOrderCode)) {
             throw new ExpressApiException('商家订单号不能为空');
         }
-        if (empty($data)) {
+        if (empty($updateData)) {
             throw new ExpressApiException('更新数据不能为空');
         }
-        return $this->request('zto.open.modify', array_merge(['orderId' => $orderId], $data));
+        return $this->request('zto.open.order.update', array_merge([
+            'partnerOrderCode' => $partnerOrderCode,
+        ], $updateData));
+    }
+
+    // ============================================================
+    // 兼容性别名方法
+    // ============================================================
+
+    /**
+     * 批量下单（调用 sendShipment 循环或批量接口）
+     */
+    public function batchSendShipment(array $shipments): array
+    {
+        if (empty($shipments)) {
+            throw new ExpressApiException('订单数据不能为空');
+        }
+        // 沙箱不支持批量接口(zto.open.batchCreateOrder 返回404)
+        // 回退为逐个调用
+        $results = [];
+        foreach ($shipments as $shipment) {
+            $results[] = $this->sendShipment($shipment);
+        }
+        return ['orders' => $results];
     }
 
     /**
-     * 电子面单打印
-     *
-     * 接口：zto.merchant.waybill.print
-     *
-     * @param string $orderId 商家订单号
-     * @param array $data 打印参数（如模板ID、打印机类型等）
-     * @return array 面单数据（HTML/PDF等格式）
-     * @throws ExpressApiException
+     * 批量查询订单
      */
-    public function printLabel(string $orderId, array $data = []): array
+    public function batchQueryOrders(array $orderIds): array
+    {
+        if (empty($orderIds)) {
+            throw new ExpressApiException('订单ID列表不能为空');
+        }
+        // 沙箱不支持批量接口，回退为逐个调用
+        $results = [];
+        foreach ($orderIds as $orderId) {
+            $results[] = $this->queryOrder($orderId);
+        }
+        return ['orders' => $results];
+    }
+
+    /**
+     * 取件通知（预约寄件）
+     */
+    public function pickupNotice(array $data): array
+    {
+        if (empty($data)) {
+            throw new ExpressApiException('取件数据不能为空');
+        }
+        return $this->request('zto.open.pickupNotice', $data);
+    }
+
+    /**
+     * 查询订单详情
+     */
+    public function queryOrder(string $orderId): array
     {
         if (empty($orderId)) {
             throw new ExpressApiException('商家订单号不能为空');
         }
-        $printData = array_merge(['orderId' => $orderId], $data);
-        return $this->request('zto.merchant.waybill.print', $printData);
+        return $this->request('zto.open.orderQuery', [
+            'partnerOrderCode' => $orderId,
+        ]);
     }
 
     /**
-     * 验证下单必填字段
-     *
-     * @param array $data 下单数据
-     * @throws ExpressApiException
+     * 拦截订单（别名方法）
      */
-    protected function validateShipmentData(array $data): void
+    public function interceptOrder(string $orderId, string $reason): array
     {
-        $requiredFields = [
-            'orderId',      // 商家订单号
-            'sender',       // 发件人信息
-            'receiver',     // 收件人信息
-        ];
-        foreach ($requiredFields as $field) {
-            if (!isset($data[$field])) {
-                throw new ExpressApiException("下单数据缺少必填字段: {$field}");
-            }
-        }
+        return $this->intercept($orderId, ['reason' => $reason]);
+    }
+
+    /**
+     * 改件信息（别名方法）
+     */
+    public function modify(string $orderId, array $data): array
+    {
+        return $this->updateOrderInfo($orderId, $data);
     }
 }
