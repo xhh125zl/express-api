@@ -80,7 +80,7 @@ class ConfigTest extends TestCase
             'sandbox' => false,
         ]);
 
-        $this->assertEquals('https://api.zto.com', $config->getProductionUrl());
+        $this->assertEquals('https://japi.zto.com', $config->getProductionUrl());
     }
 
     public function testGetBaseUrlReturnsSandboxWhenSandboxEnabled()
