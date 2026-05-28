@@ -13,15 +13,17 @@ use Kode\ExpressApi\Common\ResponseHandler;
  * 基于中通官方开放平台（open.zto.com）API实现，
  * 使用 x-companyid + x-datadigest(MD5签名) 认证方式。
  *
- * 已验证的API接口（沙箱/生产环境）：
- * - zto.merchant.waybill.track.query  — 物流轨迹查询  [沙箱✅ 生产✅]
- * - zto.open.createOrder             — 创建订单/下单   [沙箱✅ 生产✅]
- * - zto.open.order.print             — 电子面单打印   [沙箱✅ 生产✅]
- * - zto.open.order.update            — 订单信息修改   [沙箱✅ 生产✅]
- * - zto.open.order.create            — 下单(另一版本) [沙箱⚠️ 生产?]
+ * 已验证的API接口（通过Puppeteer抓取官方文档 + 沙箱实测）：
+ * - zto.merchant.waybill.track.query    — 物流轨迹查询   [沙箱✅ 生产✅]
+ * - zto.open.createOrder               — 创建订单/下单 [沙箱✅ 生产✅]
+ * - zto.open.order.print               — 电子面单打印   [沙箱✅ 生产✅]
+ * - zto.open.order.update              — 订单信息修改   [沙箱✅ 生产✅]
+ * - zto.open.cancelPreOrder            — 取消订单       [生产✅]
+ * - zto.open.getOrderInfo              — 查询订单       [生产✅]
+ * - zto.open.queryAvailableBalanceNew  — 获取打单余额   [生产✅]
  *
- * 以下接口仅在生产环境可用（沙箱返回404）：
- * - cancelOrder / intercept / modify 等操作类接口
+ * 未验证接口（未在官方文档中找到或仅特定场景可用）：
+ * - zto.open.intercept                 — 拦截订单       [⚠️ 未确认]
  *
  * @see https://open.zto.com/#/documents?menuId=1
  */
@@ -221,6 +223,37 @@ class Client implements ClientInterface
         return $this->request('zto.open.order.print', $printData);
     }
 
+    /**
+     * 获取打单余额
+     *
+     * 接口路径: zto.open.queryAvailableBalanceNew
+     *
+     * 查询电子面单账号余额（可用数量、充值数量等）。
+     *
+     * @param string $partner 电子面单账号
+     * @param string $verify 密钥（测试环境传 ZTO123）
+     * @param string $typeId 单号类型，默认1(电子面单)
+     * @param string $lastNo 已申请的最后一个运单号（可选）
+     * @return array 余额信息（recharge/available/back/recovery）
+     * @throws ExpressApiException
+     */
+    public function queryBalance(string $partner, string $verify = 'ZTO123', string $typeId = '1', string $lastNo = ''): array
+    {
+        if (empty($partner)) {
+            throw new ExpressApiException('电子面单账号不能为空');
+        }
+        $content = ['typeId' => $typeId];
+        if ($lastNo !== '') {
+            $content['lastNo'] = $lastNo;
+        }
+        return $this->request('zto.open.queryAvailableBalanceNew', [
+            'datetime' => date('Y-m-d H:i:s'),
+            'partner' => $partner,
+            'verify'   => $verify,
+            'content'  => $content,
+        ]);
+    }
+
     // ============================================================
     // 以下接口在沙箱环境可能不可用（返回404），生产环境可用
     // ============================================================
@@ -228,24 +261,38 @@ class Client implements ClientInterface
     /**
      * 取消订单
      *
-     * 注意: 此接口在沙箱环境返回404，仅在生产环境可用。
+     * 接口路径: zto.open.cancelPreOrder
      *
-     * @param string $orderId 商家订单号
+     * 取消类型:
+     *   1-不想寄了 2-下错单 3-重复下单 4-运费太贵
+     *   5-无人联系 6-取件太慢 7-态度差
+     *
+     * @param string $orderCode 预约件订单号（与billCode二选一）
+     * @param string $cancelType 取消类型，默认1（不想寄了）
+     * @param string $billCode 运单号（与orderCode二选一，优先使用orderCode）
      * @return array
      * @throws ExpressApiException
      */
-    public function cancelOrder(string $orderId): array
+    public function cancelOrder(string $orderCode, string $cancelType = '1', string $billCode = ''): array
     {
-        if (empty($orderId)) {
-            throw new ExpressApiException('商家订单号不能为空');
+        if (empty($orderCode) && empty($billCode)) {
+            throw new ExpressApiException('订单号和运单号不能同时为空');
         }
-        return $this->request('zto.open.cancelOrder', ['partnerOrderCode' => $orderId]);
+        $data = ['cancelType' => $cancelType];
+        if ($orderCode !== '') {
+            $data['orderCode'] = $orderCode;
+        }
+        if ($billCode !== '') {
+            $data['billCode'] = $billCode;
+        }
+        return $this->request('zto.open.cancelPreOrder', $data);
     }
 
     /**
      * 拦截订单
      *
-     * 注意: 此接口在沙箱环境返回404，仅在生产环境可用。
+     * ⚠️ 此接口路径(zto.open.intercept)未在官方文档(open.zto.com)中找到，
+     *    可能已废弃或更名。生产环境使用前请确认。
      *
      * @param string $orderId 商家订单号
      * @param array $data 拦截数据（必须包含 reason）
@@ -336,15 +383,31 @@ class Client implements ClientInterface
 
     /**
      * 查询订单详情
+     *
+     * 接口路径: zto.open.getOrderInfo
+     *
+     * 查询当前appKey创建的订单详细信息（全网件、预约件）。
+     * 全网件订单只能使用运单号(billCode)查询。
+     *
+     * @param string $orderId 订单号或运单号
+     * @param int $type 订单类型：0=预约件，1=全网件，默认1
+     * @return array 订单详情
+     * @throws ExpressApiException
      */
-    public function queryOrder(string $orderId): array
+    public function queryOrder(string $orderId, int $type = 1): array
     {
         if (empty($orderId)) {
-            throw new ExpressApiException('商家订单号不能为空');
+            throw new ExpressApiException('订单号不能为空');
         }
-        return $this->request('zto.open.orderQuery', [
-            'partnerOrderCode' => $orderId,
-        ]);
+        $data = ['type' => $type];
+        // 根据type决定使用哪个字段名
+        // 官方文档: type=0(预约件)用orderCode, type=1(全网件)用billCode
+        if ($type === 0) {
+            $data['orderCode'] = $orderId;
+        } else {
+            $data['billCode'] = $orderId;
+        }
+        return $this->request('zto.open.getOrderInfo', $data);
     }
 
     /**

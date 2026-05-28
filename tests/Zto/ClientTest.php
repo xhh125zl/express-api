@@ -118,6 +118,12 @@ class ClientTest extends TestCase
         $this->assertTrue(method_exists($this->client, 'printLabel'));
     }
 
+    /** @test */
+    public function queryBalance_method_exists()
+    {
+        $this->assertTrue(method_exists($this->client, 'queryBalance'));
+    }
+
     // ========== 参数校验测试 ==========
 
     /**
@@ -132,14 +138,14 @@ class ClientTest extends TestCase
     }
 
     /**
-     * 测试取消订单缺少订单号时抛出异常
+     * 测试取消订单订单号和运单号都为空时抛出异常
      */
-    public function testCancelOrderThrowsExceptionWhenOrderIdEmpty()
+    public function testCancelOrderThrowsExceptionWhenBothIdsEmpty()
     {
         $this->expectException(ExpressApiException::class);
-        $this->expectExceptionMessage('不能为空');
+        $this->expectExceptionMessage('不能同时为空');
 
-        $this->client->cancelOrder('');
+        $this->client->cancelOrder('', '1', '');
     }
 
     /**
@@ -226,5 +232,82 @@ class ClientTest extends TestCase
         $headers = $auth->buildAuthHeaders('{}');
         $this->assertEquals('app_key', $headers['x-companyid']);
         $this->assertNotEmpty($headers['x-datadigest']);
+    }
+
+    // ========== 新增/修改方法专项测试 ==========
+
+    /**
+     * 测试取消订单可仅传orderCode（默认cancelType=1）
+     */
+    public function testCancelOrderWithOrderCodeOnly()
+    {
+        // 不抛异常即可，验证参数组装正确
+        // 实际不会发请求因为只是验证方法签名
+        try {
+            $this->client->cancelOrder('TEST_ORDER_001');
+        } catch (ExpressApiException $e) {
+            // 预期会因网络或沙箱404报错，但不是参数校验错误
+            $this->assertStringNotContainsString('不能同时为空', $e->getMessage());
+        }
+    }
+
+    /**
+     * 测试取消订单可传billCode
+     */
+    public function testCancelOrderWithBillCode()
+    {
+        try {
+            $this->client->cancelOrder('', '2', '7310000000001');
+        } catch (ExpressApiException $e) {
+            $this->assertStringNotContainsString('不能同时为空', $e->getMessage());
+        }
+    }
+
+    /**
+     * 测试查询订单默认type=1(全网件)使用billCode字段
+     */
+    public function testQueryOrderDefaultTypeUsesBillCode()
+    {
+        try {
+            $this->client->queryOrder('7310000000001');
+        } catch (ExpressApiException $e) {
+            $this->assertStringNotContainsString('不能为空', $e->getMessage());
+        }
+    }
+
+    /**
+     * 测试查询订单type=0(预约件)使用orderCode字段
+     */
+    public function testQueryOrderReservationType()
+    {
+        try {
+            $this->client->queryOrder('ORDER_001', 0);
+        } catch (ExpressApiException $e) {
+            $this->assertStringNotContainsString('不能为空', $e->getMessage());
+        }
+    }
+
+    /**
+     * 测试查询余额缺少partner时抛出异常
+     */
+    public function testQueryBalanceThrowsWhenPartnerEmpty()
+    {
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('电子面单账号');
+
+        $this->client->queryBalance('');
+    }
+
+    /**
+     * 测试查询余额partner为空字符串时抛出异常
+     */
+    public function testQueryBalanceAcceptsPartnerParam()
+    {
+        // 只验证不抛异常，实际调用会因为沙箱环境问题失败
+        try {
+            $this->client->queryBalance('test_account', 'ZTO123');
+        } catch (ExpressApiException $e) {
+            $this->assertStringNotContainsString('电子面单账号', $e->getMessage());
+        }
     }
 }

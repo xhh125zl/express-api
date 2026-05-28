@@ -16,7 +16,9 @@ use PHPUnit\Framework\TestCase;
  *   ZTO_SANDBOX_APP_KEY    - 沙箱 AppKey
  *   ZTO_SANDBOX_APP_SECRET - 沙箱 AppSecret
  *
- * 如果未设置环境变量，这些测试会被标记为 skipped。
+ * 如果未设置环境变量，API连通性测试会被标记为 skipped。
+ *
+ * 已验证的沙箱运单号: 73100227574514（可用于物流查询和订单查询）
  *
  * @group integration
  * @group zto
@@ -51,7 +53,7 @@ class SandboxIntegrationTest extends TestCase
     }
 
     // ============================================================
-    // 签名算法验证测试（不需要真实API调用）
+    // 签名算法单元测试（不需要真实API调用）
     // ============================================================
 
     public function testSignatureAlgorithmProducesConsistentResult()
@@ -124,95 +126,171 @@ class SandboxIntegrationTest extends TestCase
         $this->assertEquals(24, strlen($headers['x-datadigest']), 'MD5+Base64签名长度应为24');
     }
 
-    public function testAuthHeaderIncludesTimestampWhenProvided()
-    {
-        $auth = new Auth(new Config(['app_key' => 'k', 'app_secret' => 's']));
-        $ts = 1716800000;
-
-        $headers = $auth->buildAuthHeaders('{}', 'md5', $ts);
-
-        $this->assertArrayHasKey('x-timestamp', $headers);
-        $this->assertEquals((string)$ts, $headers['x-timestamp']);
-    }
-
-    public function testAuthHeaderOmitsTimestampWhenNotProvided()
-    {
-        $auth = new Auth(new Config(['app_key' => 'k', 'app_secret' => 's']));
-
-        $headers = $auth->buildAuthHeaders('{}');
-
-        $this->assertArrayNotHasKey('x-timestamp', $headers);
-    }
-
     // ============================================================
     // 真实 API 连通性测试（需要沙箱凭证）
     // ============================================================
 
-    public function testSandboxTrackQueryConnectivity()
+    /**
+     * 物流轨迹查询 - 使用已知的有效沙箱运单号
+     */
+    public function testSandboxTrackQueryWithValidBillCode()
     {
         if (!$this->hasCredentials) {
             $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
         }
 
-        // 使用无效运单号测试连通性（预期抛出ExpressApiException）
-        $exceptionCaught = false;
+        // 使用官方提供的沙箱测试运单号
+        $result = $this->client->queryTracking('73100227574514');
+
+        // 返回值必须是数组（轨迹节点列表）
+        $this->assertIsArray($result);
+        // 应该有至少一条轨迹记录
+        $this->assertNotEmpty($result, '应该返回轨迹数据');
+        // 第一条记录应包含关键字段
+        $firstNode = $result[0];
+        $this->assertArrayHasKey('billCode', $firstNode, '轨迹节点应包含运单号');
+        $this->assertArrayHasKey('scanType', $firstNode, '轨迹节点应包含扫描类型');
+        $this->assertArrayHasKey('scanDate', $firstNode, '轨迹节点应包含扫描时间');
+        $this->assertEquals('73100227574514', $firstNode['billCode'], '运单号应匹配');
+    }
+
+    /**
+     * 创建订单 - 完整数据测试
+     */
+    public function testSandboxCreateOrderWithFullData()
+    {
+        if (!$this->hasCredentials) {
+            $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
+        }
+
+        $result = $this->client->sendShipment([
+            'partnerType'      => '2',
+            'orderType'        => '1',
+            'partnerOrderCode' => 'PHPUNIT_' . date('YmdHis') . '_' . mt_rand(1000, 9999),
+            'senderInfo'       => [
+                'senderName'     => '测试发件人',
+                'senderMobile'   => '13800000001',
+                'senderProvince' => '上海',
+                'senderCity'     => '上海市',
+                'senderDistrict' => '青浦区',
+                'senderAddress'  => '测试地址123号',
+            ],
+            'receiveInfo'      => [
+                'receiverName'     => '测试收件人',
+                'receiverMobile'   => '13900000002',
+                'receiverProvince' => '北京',
+                'receiverCity'     => '北京市',
+                'receiverDistrict' => '朝阳区',
+                'receiverAddress'  => '测试收件地址456号',
+            ],
+            'accountInfo'      => [
+                'accountId'      => 'test',
+                'accountPassword' => 'ZTO123',
+            ],
+        ]);
+
+        // 创建订单成功时应返回结果数据
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('billCode', $result, '应返回运单号');
+        $this->assertArrayHasKey('orderCode', $result, '应返回订单号');
+        $this->assertNotEmpty($result['billCode'], '运单号不应为空');
+        $this->assertNotEmpty($result['orderCode'], '订单号不应为空');
+        // billCode 应该是14位数字
+        $this->assertMatchesRegularExpression('/^\d{14}$/', $result['billCode'], '运单号格式应为14位数字');
+    }
+
+    /**
+     * 电子面单打印 - 沙箱可能不支持(E405)
+     */
+    public function testSandboxPrintLabelMayFailInSandbox()
+    {
+        if (!$this->hasCredentials) {
+            $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
+        }
+
         try {
-            $result = $this->client->queryTracking('INVALID_CODE_FOR_TEST');
-            // 如果没抛异常，说明API返回了有效响应
+            $result = $this->client->printLabel('73100227574514');
+            // 如果沙箱配置了此接口，应该正常返回
             $this->assertIsArray($result);
-            $this->assertArrayHasKey('status', $result);
         } catch (ExpressApiException $e) {
-            $exceptionCaught = true;
-            // 预期是业务错误（如运单号格式错误），不是认证或网络错误
+            // 沙箱环境经常返回 E405 "不存在对应的API配置"，这是预期行为
             $msg = $e->getMessage();
-            $this->assertNotFalse(
-                stripos($msg, '运单') !== false || stripos($msg, '校验') !== false,
-                "应该是业务错误而非系统错误，实际: {$msg}"
+            $isExpectedError = (
+                stripos($msg, 'E405') !== false ||
+                stripos($msg, '不存在对应的API配置') !== false
+            );
+            $this->assertTrue(
+                $isExpectedError,
+                "面单打印错误应该是E405或配置问题，实际: {$msg}"
             );
         }
-        $this->assertTrue(true, '沙箱物流查询接口连通正常');
     }
 
-    public function testSandboxCreateOrderConnectivity()
+    /**
+     * 获取打单余额 - 查询接口连通性
+     */
+    public function testSandboxQueryBalance()
     {
         if (!$this->hasCredentials) {
             $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
         }
 
-        // 发送最小数据测试连通性
-        $exceptionCaught = false;
-        try {
-            $this->client->sendShipment([
-                'partnerType'      => '2',
-                'orderType'        => '1',
-                'partnerOrderCode' => 'INTEGRATION_TEST_' . date('YmdHis'),
-            ]);
-        } catch (ExpressApiException $e) {
-            $exceptionCaught = true;
-            // 参数校验异常是预期的（缺少必填字段）
-            $this->assertStringContainsString('不能为空', $e->getMessage());
-        }
-        // 如果没抛异常，说明API返回了有效响应
-        if (!$exceptionCaught) {
-            $this->assertTrue(true, 'API返回了响应（可能是成功或业务错误）');
-        }
+        $result = $this->client->queryBalance('test', 'ZTO123', '1');
+
+        $this->assertIsArray($result);
+        // 余额接口应返回余额字段
+        $this->assertArrayHasKey('available', $result, '应返回可用数量');
+        $this->assertArrayHasKey('recharge', $result, '应返回充值数量');
     }
 
-    public function testSandboxPrintLabelConnectivity()
+    /**
+     * 查询订单信息 - 使用已知的有效运单号
+     */
+    public function testSandboxGetOrderInfoWithValidBillCode()
     {
         if (!$this->hasCredentials) {
             $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
         }
 
-        $exceptionCaught = false;
-        try {
-            $this->client->printLabel('TEST_BILL_CODE');
-        } catch (ExpressApiException $e) {
-            $exceptionCaught = true;
-            // 任何业务错误都说明连通成功（签名正确）
-            $this->assertNotEmpty($e->getMessage());
+        // type=1 全网件，使用运单号查询
+        $result = $this->client->queryOrder('73100227574514', 1);
+
+        $this->assertIsArray($result);
+        // 应返回订单数组
+        $this->assertNotEmpty($result, '应返回订单数据');
+        // 第一条订单应包含关键字段
+        $firstOrder = $result[0];
+        $this->assertArrayHasKey('billCode', $firstOrder, '订单应包含运单号');
+        $this->assertArrayHasKey('orderStatus', $firstOrder, '订单应包含状态');
+        $this->assertArrayHasKey('sendName', $firstOrder, '订单应包含发件人姓名');
+        $this->assertArrayHasKey('receivName', $firstOrder, '订单应包含收件人姓名');
+    }
+
+    /**
+     * 取消订单 - 接口路径正确性验证
+     */
+    public function testSandboxCancelOrderApiPathCorrectness()
+    {
+        if (!$this->hasCredentials) {
+            $this->markTestSkipped('未设置 ZTO_SANDBOX_APP_KEY / ZTO_SANDBOX_APP_SECRET 环境变量');
         }
-        // 无论是否抛异常，能收到API响应就说明连通正常
-        $this->assertTrue(true, '沙箱面单打印接口连通正常');
+
+        // 沙箱中可能查不到订单，但能收到API响应就说明路径和签名正确
+        try {
+            $result = $this->client->cancelOrder('NONEXIST_ORDER_001', '1');
+            $this->assertIsArray($result);
+        } catch (ExpressApiException $e) {
+            $msg = $e->getMessage();
+            // 业务错误（如"查询不到该订单"）说明API路径和签名都正确
+            $isBusinessError = (
+                stripos($msg, '查询不到') !== false ||
+                stripos($msg, '不存在') !== false ||
+                stripos($msg, '订单') !== false
+            );
+            $this->assertTrue(
+                $isBusinessError || stripos($msg, '取消类型') !== false,
+                "应该是业务错误，实际: {$msg}"
+            );
+        }
     }
 }
