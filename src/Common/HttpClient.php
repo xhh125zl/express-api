@@ -68,6 +68,7 @@ class HttpClient
             throw new ExpressApiException(
                 'HTTP请求失败: ' . ($result['message'] ?? '未知错误'),
                 $httpCode,
+                null,
                 $result
             );
         }
