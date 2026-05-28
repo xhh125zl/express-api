@@ -186,19 +186,20 @@ class Client implements ClientInterface
      * 接口路径: zto.merchant.waybill.track.query
      *
      * @param string $billCode 中通运单号（12位数字或字母数字组合）
-     * @param string $language 语言（zh-CN, en-US），默认 zh-CN
+     * @param string $mobilePhone 收寄人电话号码后4位（可选，用于鉴权）
      * @return array 包含轨迹节点列表
      * @throws ExpressApiException
      */
-    public function queryTracking(string $billCode, string $language = 'zh-CN'): array
+    public function queryTracking(string $billCode, string $mobilePhone = ''): array
     {
         if (empty($billCode)) {
             throw new ExpressApiException('运单号不能为空');
         }
-        return $this->request('zto.merchant.waybill.track.query', [
-            'billCode' => $billCode,
-            'language' => $language,
-        ]);
+        $data = ['billCode' => $billCode];
+        if ($mobilePhone !== '') {
+            $data['mobilePhone'] = $mobilePhone;
+        }
+        return $this->request('zto.merchant.waybill.track.query', $data);
     }
 
     /**
