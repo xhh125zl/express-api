@@ -81,10 +81,11 @@ class ResponseHandler
                 }
                 break;
             case 'zto':
-                // 中通开放平台错误格式
+                // 中通开放平台错误格式: statusCode为状态码(string, 如C100)
                 if (isset($response['status']) && $response['status'] === false) {
                     $message = $response['message'] ?? $message;
-                    $code = $response['code'] ?? 0;
+                    // statusCode是string类型(如"C100")，转为int；原始值保留在$details中
+                    $code = (int)($response['statusCode'] ?? $code);
                 }
                 break;
 
