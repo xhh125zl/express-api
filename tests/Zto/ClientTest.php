@@ -310,4 +310,76 @@ class ClientTest extends TestCase
             $this->assertStringNotContainsString('电子面单账号', $e->getMessage());
         }
     }
+
+    // ========== bindingEaccount 测试 ==========
+
+    /** @test */
+    public function bindingEaccount_method_exists()
+    {
+        $this->assertTrue(method_exists($this->client, 'bindingEaccount'));
+    }
+
+    /**
+     * 测试绑定电子面单：eaccount为空时抛出异常
+     */
+    public function testBindingEaccountThrowsWhenEaccountEmpty()
+    {
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('电子面单账号不能为空');
+
+        $this->client->bindingEaccount('', 'SC001', 'pwd123');
+    }
+
+    /**
+     * 测试绑定电子面单：siteCode为空时抛出异常
+     */
+    public function testBindingEaccountThrowsWhenSiteCodeEmpty()
+    {
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('网点code不能为空');
+
+        $this->client->bindingEaccount('acc001', '', 'pwd123');
+    }
+
+    /**
+     * 测试绑定电子面单：密码为空时抛出异常
+     */
+    public function testBindingEaccountThrowsWhenPasswordEmpty()
+    {
+        $this->expectException(ExpressApiException::class);
+        $this->expectExceptionMessage('电子面单密码不能为空');
+
+        $this->client->bindingEaccount('acc001', 'SC001', '');
+    }
+
+    /**
+     * 测试绑定电子面单：必填参数合法时不触发参数校验异常
+     */
+    public function testBindingEaccountAcceptsValidParams()
+    {
+        try {
+            $this->client->bindingEaccount('acc001', 'SC001', 'pwd123');
+        } catch (ExpressApiException $e) {
+            // 沙箱/网络失败可接受，不应是参数校验错误
+            $this->assertStringNotContainsString('不能为空', $e->getMessage());
+        }
+    }
+
+    /**
+     * 测试绑定电子面单：带可选参数 address 和 addressDetail
+     */
+    public function testBindingEaccountAcceptsOptionalAddress()
+    {
+        try {
+            $this->client->bindingEaccount(
+                'acc001',
+                'SC001',
+                'pwd123',
+                '北京/北京市/东城区',
+                '17号'
+            );
+        } catch (ExpressApiException $e) {
+            $this->assertStringNotContainsString('不能为空', $e->getMessage());
+        }
+    }
 }

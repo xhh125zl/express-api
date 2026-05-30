@@ -21,6 +21,7 @@ use Kode\ExpressApi\Common\ResponseHandler;
  * - zto.open.cancelPreOrder            — 取消订单       [生产✅]
  * - zto.open.getOrderInfo              — 查询订单       [生产✅]
  * - zto.open.queryAvailableBalanceNew  — 获取打单余额   [生产✅]
+ * - zto.open.bindingEaccount          — 绑定电子面单    [文档✅]
  *
  * 未验证接口（未在官方文档中找到或仅特定场景可用）：
  * - zto.open.intercept                 — 拦截订单       [⚠️ 未确认]
@@ -424,5 +425,64 @@ class Client implements ClientInterface
     public function modify(string $orderId, array $data): array
     {
         return $this->updateOrderInfo($orderId, $data);
+    }
+
+    // ============================================================
+    // 基础服务接口
+    // ============================================================
+
+    /**
+     * 绑定电子面单
+     *
+     * 接口路径: zto.open.bindingEaccount
+     *
+     * 将电子面单账号与当前 AppKey 绑定关系，以便下单或查询轨迹。
+     * 绑定成功后 status=true，无需关注 result 字段（始终为空对象）。
+     *
+     * 业务错误码:
+     *   314 — 电子面单账号不存在，请联系网点人员核实
+     *   315 — 电子面单账号不可用，请联系网点人员处理
+     *   316 — 请绑定自己的电子面单账号
+     *   600 — 已绑定，无需重复绑定
+     *   acout002 — 电子面单绑定无权限
+     *   p-w001 — 密码校验接口失败
+     *   p-w002 — 密码校验失败（密码不正确）
+     *
+     * @param string $eaccount     电子面单账号（必填）
+     * @param string $siteCode     网点code（必填）
+     * @param string $eaccountPwd  电子面单密码（必填）
+     * @param string $address      地址：省市区，如"北京/北京市/东城区"（可选）
+     * @param string $addressDetail 详细地址，如"17号"（可选）
+     * @return array status=true 表示绑定成功
+     * @throws ExpressApiException
+     */
+    public function bindingEaccount(
+        string $eaccount,
+        string $siteCode,
+        string $eaccountPwd,
+        string $address = '',
+        string $addressDetail = ''
+    ): array {
+        if (empty($eaccount)) {
+            throw new ExpressApiException('电子面单账号不能为空');
+        }
+        if (empty($siteCode)) {
+            throw new ExpressApiException('网点code不能为空');
+        }
+        if (empty($eaccountPwd)) {
+            throw new ExpressApiException('电子面单密码不能为空');
+        }
+        $data = [
+            'eaccount'    => $eaccount,
+            'siteCode'    => $siteCode,
+            'eaccountPwd' => $eaccountPwd,
+        ];
+        if ($address !== '') {
+            $data['address'] = $address;
+        }
+        if ($addressDetail !== '') {
+            $data['addressDetail'] = $addressDetail;
+        }
+        return $this->request('zto.open.bindingEaccount', $data);
     }
 }
